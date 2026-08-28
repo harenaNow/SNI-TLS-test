@@ -15,7 +15,7 @@ bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/ma
 带参数运行：
 
 ```bash
-bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -n 10 --no-tls13
+bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -n 10
 ```
 
 下载后本地运行：
