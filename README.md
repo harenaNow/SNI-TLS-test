@@ -12,10 +12,10 @@
 bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)"
 ```
 
-或管道方式：
+或管道方式（管道需用 `--` 分隔 bash 自身参数）：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh | bash -s
+curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh | bash -s -- --no-tls13
 ```
 
 下载后本地运行：
@@ -23,6 +23,12 @@ curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_
 ```bash
 chmod +x sni_tls_test.sh
 ./sni_tls_test.sh
+```
+
+`bash -c` 方式可直接追加参数，无需 `--`：
+
+```bash
+bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -n 10 --no-tls13
 ```
 
 ## 参数
@@ -79,7 +85,7 @@ Reality 推荐 (最快且支持 TLS1.3): amd.com (47 ms)
 筛选出候选后，用 `--check` 对单个域名做可用性检测（连通性 3 轮、TLS 1.3、证书受信、H2、证书详情）：
 
 ```bash
-bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -- --check www.tesla.com
+bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" --check www.tesla.com
 ```
 
 输出示例：

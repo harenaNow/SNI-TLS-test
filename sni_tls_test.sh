@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.3.0"
+VERSION="1.3.1"
 
 TIMEOUT=1
 CONC=8
@@ -20,8 +20,8 @@ cat <<EOF
 Reality 协议域名优选脚本 v$VERSION
 
 用法:
-  $0 [选项] [域名...]
-  bash -c "\$(curl -sSL <脚本URL>)" -- [选项] [域名...]
+  sni_tls_test.sh [选项] [域名...]
+  bash -c "\$(curl -sSL <脚本URL>)" [选项] [域名...]
   curl -sSL <脚本URL> | bash -s -- [选项] [域名...]
 
 选项:
@@ -53,6 +53,11 @@ command -v openssl >/dev/null 2>&1 || die "未找到 openssl"
 command -v awk     >/dev/null 2>&1 || die "未找到 awk"
 command -v sed     >/dev/null 2>&1 || die "未找到 sed"
 command -v grep    >/dev/null 2>&1 || die "未找到 grep"
+
+case "$0" in
+  --) : ;;
+  -*) set -- "$0" "$@" ;;
+esac
 
 while [ $# -gt 0 ]; do
   case "$1" in
