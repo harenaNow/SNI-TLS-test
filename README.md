@@ -6,11 +6,13 @@
 
 ## 快速开始
 
-一行命令运行（无需下载保存），可直接追加参数，无需 `--`：
+一行命令运行（无需下载保存）：
 
 ```bash
 bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)"
 ```
+
+带参数运行：
 
 ```bash
 bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -n 10 --no-tls13
