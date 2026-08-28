@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 TIMEOUT=1
 CONC=8
@@ -8,6 +8,7 @@ ROUNDS=3
 TOPN=0
 DOMAINS_FILE=""
 TLS13=1
+CHECK_DOMAIN=""
 EXTRA_DOMAINS=()
 
 DEFAULT_DOMAINS="b.6sc.co lpcdn.lpsnmedia.net j.6sc.co xp.apple.com s.go-mpulse.net www.nvidia.com statici.icloud.com sisu.xboxlive.com www.wowt.com fpinit.itunes.apple.com c.s-microsoft.com www.icloud.com r.bing.com cdn.userway.org ts2.tc.mm.bing.net a0.awsstatic.com azure.microsoft.com amp-api-edge.apps.apple.com j.6sc.co www.xilinx.com apps.mzstatic.com devblogs.microsoft.com snap.licdn.com s0.awsstatic.com ipv6.6sc.co th.bing.com ts4.tc.mm.bing.net drivers.amd.com go.microsoft.com b.6sc.co lpcdn.lpsnmedia.net amd.com s.mp.marsflag.com th.bing.com d2c.aws.amazon.com ts1.tc.mm.bing.net t0.m.awsstatic.com sisu.xboxlive.com fpinit.itunes.apple.com digitalassets.tesla.com t0.m.awsstatic.com www.oracle.com downloadmirror.intel.com iosapps.itunes.apple.com cua-chat-ui.tesla.com mscom.demdex.net www.xbox.com i7158c100-ds-aksb-a.akamaihd.net amd.com intelcorp.scene7.com j.6sc.co www.amd.com gray.video-player.arcpublishing.com c.6sc.co s0.awsstatic.com s.mp.marsflag.com ts3.tc.mm.bing.net www.xilinx.com ce.mf.marsflag.com drivers.amd.com www.tesla.com www.apple.com www.microsoft.com apps.apple.com www.cartoonbrew.com shin-ei-animation.jp www.ritao.co ani-com.hk"
@@ -30,6 +31,8 @@ Reality 协议域名优选脚本 v$VERSION
   -n N       只显示最快的 N 个结果
   -f 文件    从文件读取域名 (每行一个, 支持注释, 提供时替代默认列表)
   --no-tls13 关闭 TLS 1.3 支持检测 (默认开启, Reality 要求目标支持 TLS 1.3)
+  --check 域名  深度检测单个域名是否可用作 Reality 伪装域名
+                (连通性/TLS 1.3/证书受信/H2/证书详情)
   -h, --help     显示本帮助
   -V, --version  显示版本
 
@@ -60,6 +63,7 @@ while [ $# -gt 0 ]; do
     -f) [ $# -ge 2 ] || die "-f 需要参数"; DOMAINS_FILE="$2"; shift 2 ;;
     --tls13) TLS13=1; shift ;;
     --no-tls13) TLS13=0; shift ;;
+    --check) [ $# -ge 2 ] || die "--check 需要参数"; CHECK_DOMAIN="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     -V|--version) printf 'sni_tls_test.sh %s\n' "$VERSION"; exit 0 ;;
     --) shift; while [ $# -gt 0 ]; do EXTRA_DOMAINS+=("$1"); shift; done ;;
@@ -195,6 +199,115 @@ test_one() {
   printf '%s\t%s\t%s\t%s\t%s\n' "$ms" "$status" "$tls13" "$d" "$okcnt/$ROUNDS" > "$out"
   printf '.' >&2
 }
+
+check_domain() {
+  local d="$1"
+  local green="" red="" yellow="" none=""
+  if [ -t 1 ]; then
+    green=$'\033[32m'; red=$'\033[31m'; yellow=$'\033[33m'; none=$'\033[0m'
+  fi
+
+  printf 'Reality 伪装域名检测: %s\n\n' "$d"
+
+  local i ok=0 sum=0 ms t1 t2 avg=0
+  for i in 1 2 3; do
+    t1=$(now_ms)
+    if run_with_timeout "$TIMEOUT" openssl s_client -connect "$d:443" -servername "$d" </dev/null >/dev/null 2>&1; then
+      t2=$(now_ms)
+      ms=$((t2 - t1))
+      [ "$ms" -lt 1 ] && ms=1
+      sum=$((sum + ms))
+      ok=$((ok + 1))
+    fi
+  done
+  [ "$ok" -gt 0 ] && avg=$(((sum + ok / 2) / ok))
+
+  local conn
+  if [ "$ok" -eq 3 ]; then
+    conn="${green}✓${none} 成功 3/3, 平均 ${avg} ms"
+  elif [ "$ok" -gt 0 ]; then
+    conn="${yellow}△${none} 不稳定 $ok/3, 平均 ${avg} ms"
+  else
+    conn="${red}✗${none} 失败 0/3"
+  fi
+  printf '连通性    %s\n' "$conn"
+
+  local t13ok=0 t13
+  if [ "$TLS13_CAP" = "yes" ]; then
+    for i in 1 2 3; do
+      run_with_timeout "$TIMEOUT" openssl s_client -tls1_3 -connect "$d:443" -servername "$d" </dev/null >/dev/null 2>&1 && t13ok=$((t13ok + 1))
+    done
+    if [ "$t13ok" -eq 3 ]; then
+      t13="${green}✓${none} 支持"
+    elif [ "$t13ok" -gt 0 ]; then
+      t13="${yellow}△${none} 部分成功 $t13ok/3"
+    else
+      t13="${red}✗${none} 不支持"
+    fi
+  else
+    t13="${yellow}?${none} 本机 openssl 过旧, 无法检测"
+  fi
+  printf 'TLS 1.3   %s\n' "$t13"
+
+  local c_res c_rc h2 http_code cert
+  c_res=$(curl -s -v -m 3 -A "Mozilla/5.0" -o /dev/null -w 'META HTTP:%{http_code}' "https://$d" 2>&1)
+  c_rc=$?
+  if echo "$c_res" | grep -qi "using HTTP/2"; then h2="yes"; else h2="no"; fi
+  http_code=$(echo "$c_res" | grep -o 'HTTP:[0-9]*' | head -1 | cut -d: -f2)
+  [ -z "$http_code" ] && http_code="-"
+  if [ "$c_rc" -eq 0 ]; then
+    cert="${green}✓${none} 受信任"
+  else
+    cert="${red}✗${none} 不受信任或校验失败 (curl rc=$c_rc)"
+  fi
+  printf '证书信任  %s\n' "$cert"
+
+  if [ "$h2" = "yes" ]; then
+    printf 'H2        %s\n' "${green}✓${none} 支持"
+  else
+    printf 'H2        %s\n' "${yellow}△${none} 不支持 (Reality 建议目标支持 H2)"
+  fi
+  printf 'HTTP      %s\n' "$http_code"
+
+  local cert_info cn exp
+  cert_info=$(echo | run_with_timeout "$TIMEOUT" openssl s_client -connect "$d:443" -servername "$d" 2>/dev/null | openssl x509 -noout -subject -enddate 2>/dev/null)
+  if [ -n "$cert_info" ]; then
+    cn=$(printf '%s\n' "$cert_info" | sed -n 's/.*CN *= *//p' | head -1)
+    exp=$(printf '%s\n' "$cert_info" | sed -n 's/^notAfter=//p')
+    printf '证书详情  CN=%s, 有效期至%s\n' "$cn" "$exp"
+  fi
+
+  local verdict rc
+  if [ "$ok" -eq 0 ]; then
+    verdict="${red}✗ 不可用${none}: 无法建立 TLS 连接"
+    rc=1
+  elif [ "$TLS13_CAP" = "yes" ] && [ "$t13ok" -eq 0 ]; then
+    verdict="${red}✗ 不可用${none}: 不支持 TLS 1.3 (Reality 必需)"
+    rc=1
+  elif [ "$c_rc" -ne 0 ]; then
+    verdict="${red}✗ 不可用${none}: 证书不受信任或 HTTPS 校验失败"
+    rc=1
+  elif [ "$h2" = "no" ]; then
+    verdict="${yellow}△ 可用${none}: 支持 TLS 1.3 但不支持 H2, 建议换用支持 H2 的域名"
+    rc=0
+  elif [ "$ok" -lt 3 ]; then
+    verdict="${yellow}△ 可用但不稳定${none}: 握手成功率 $ok/3, 建议换用更稳定的域名"
+    rc=0
+  else
+    verdict="${green}✓ 可用${none}: 可作为 Reality 伪装域名 (dest)"
+    rc=0
+  fi
+  printf '\n结论: %s\n' "$verdict"
+  return "$rc"
+}
+
+if [ -n "$CHECK_DOMAIN" ]; then
+  CHECK_DOMAIN=$(printf '%s\n' "$CHECK_DOMAIN" | tr 'A-Z' 'a-z' | sed -e 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##' -e 's#/.*$##' -e 's/:.*$//' | head -1)
+  [ -n "$CHECK_DOMAIN" ] || die "--check 域名无效"
+  command -v curl >/dev/null 2>&1 || die "检测模式需要 curl"
+  check_domain "$CHECK_DOMAIN"
+  exit $?
+fi
 
 printf 'Reality 协议域名优选脚本 v%s\n' "$VERSION"
 printf 'openssl: %s | 计时: %s | 超时工具: %s\n' \

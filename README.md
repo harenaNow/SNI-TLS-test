@@ -35,6 +35,7 @@ chmod +x sni_tls_test.sh
 | `-n N` | 只显示最快的 N 个结果 | 全部显示 |
 | `-f 文件` | 从文件读取域名（提供时替代内置列表） | 内置列表 |
 | `--no-tls13` | 关闭 TLS 1.3 支持检测 | 开启 |
+| `--check 域名` | 深度检测单个域名是否可用作 Reality 伪装域名 | |
 | `-h, --help` | 显示帮助 | |
 | `-V, --version` | 显示版本 | |
 
@@ -72,6 +73,31 @@ Reality 推荐 (最快且支持 TLS1.3): amd.com (47 ms)
 - **TIMEOUT**：连接或握手超时（常见于无路由、被墙、IPv6 不通的域名）
 - **FAIL**：快速失败（常见于 DNS 解析失败、端口不通）
 - **Reality 推荐**：自动选出「延迟最低且支持 TLS 1.3」的域名（关闭检测时无此行）
+
+## 单域名深度检测
+
+筛选出候选后，用 `--check` 对单个域名做可用性检测（连通性 3 轮、TLS 1.3、证书受信、H2、证书详情）：
+
+```bash
+bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -- --check www.tesla.com
+```
+
+输出示例：
+
+```text
+Reality 伪装域名检测: www.microsoft.com
+
+连通性    ✓ 成功 3/3, 平均 42 ms
+TLS 1.3   ✓ 支持
+证书信任  ✓ 受信任
+H2        ✓ 支持
+HTTP      403
+证书详情  CN=www.microsoft.com, 有效期至Jan 17 19:55:21 2027 GMT
+
+结论: ✓ 可用: 可作为 Reality 伪装域名 (dest)
+```
+
+说明：HTTP 返回 403/404 是目标站对爬虫请求的拦截，Reality 只借用 TLS 握手、不向目标发 HTTP 请求，不影响使用。检测模式可用作 shell 脚本判断：退出码 0 为可用、1 为不可用。
 
 ## 自定义域名列表
 
