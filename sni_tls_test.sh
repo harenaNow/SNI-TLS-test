@@ -22,7 +22,6 @@ Reality 协议域名优选脚本 v$VERSION
 用法:
   sni_tls_test.sh [选项] [域名...]
   bash -c "\$(curl -sSL <脚本URL>)" [选项] [域名...]
-  curl -sSL <脚本URL> | bash -s -- [选项] [域名...]
 
 选项:
   -t 秒      单次 TLS 握手超时秒数 (默认: 1)

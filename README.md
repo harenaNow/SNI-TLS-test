@@ -6,16 +6,14 @@
 
 ## 快速开始
 
-一行命令运行（无需下载保存）：
+一行命令运行（无需下载保存），可直接追加参数，无需 `--`：
 
 ```bash
 bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)"
 ```
 
-或管道方式（管道需用 `--` 分隔 bash 自身参数）：
-
 ```bash
-curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh | bash -s -- --no-tls13
+bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -n 10 --no-tls13
 ```
 
 下载后本地运行：
@@ -23,12 +21,6 @@ curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_
 ```bash
 chmod +x sni_tls_test.sh
 ./sni_tls_test.sh
-```
-
-`bash -c` 方式可直接追加参数，无需 `--`：
-
-```bash
-bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/main/sni_tls_test.sh)" -n 10 --no-tls13
 ```
 
 ## 参数
@@ -54,7 +46,7 @@ bash -c "$(curl -sSL https://raw.githubusercontent.com/harenaNow/SNI-TLS-test/ma
 ## 输出示例
 
 ```text
-Reality 协议域名优选脚本 v1.2.0
+Reality 协议域名优选脚本 v1.3.1
 openssl: OpenSSL 3.0.13 | 计时: bash 内置 EPOCHREALTIME | 超时工具: GNU timeout
 超时: 1s | 并发: 8 | 每域名 3 次取平均 | 域名数: 5
 
